@@ -33,6 +33,27 @@ const mapDispatchToProps = (dispatch) => {
         },
         onDetailsSubmit: (icon, text) => {
             dispatch(addPostToTimeline(icon, text));
+
+            // Pendo Track Event: an activity entry was added to the record's timeline.
+            // The shared #submit-btn can't tell which activity tab was used or whether
+            // the entry was empty, so fire here only for non-empty entries.
+            // The entry text itself is never sent (may contain PII).
+            const trimmedText = typeof text === 'string' ? text.trim() : '';
+            if (trimmedText && window.pendo && typeof window.pendo.track === 'function') {
+                const pathname = window.location.pathname;
+                try {
+                    window.pendo.track('timeline_activity_logged', {
+                        activity_type: String(icon || '')
+                            .trim()
+                            .slice(0, 100),
+                        record_type: pathname.split('/')[1],
+                        is_new_record: pathname.includes('new'),
+                        entry_length: trimmedText.length
+                    });
+                } catch (e) {
+                    // Never let tracking failures break the timeline flow
+                }
+            }
         },
         onDetailsLoad: (url) => {
             localStorage.clear();
